@@ -11,6 +11,8 @@ import UIKit
 class TodoListViewController: UIViewController {
 
     var itemArray: [String] = ["Buy milk", "Buy eggs", "Make cake", "Profit"]
+    //UserDefaults saves to a Plist file
+    let defaults = UserDefaults.standard
     
     var tableView: UITableView!
     var reuseIdentifier: String = "TodoItemCell"
@@ -30,6 +32,11 @@ class TodoListViewController: UIViewController {
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: reuseIdentifier)
         tableView.delegate = self
         tableView.dataSource = self
+        
+        //If we have saved info on UserDefaults, load it, if not, we still have the default itemArray 
+        if let items = defaults.object(forKey: "TodoListArray") as? [String] {
+            itemArray = items
+        }
 
         //Setup NavCon navigation bar properties
         navigationItem.title = "Yatdl"
@@ -51,6 +58,8 @@ class TodoListViewController: UIViewController {
         let newItemAction = UIAlertAction(title: "Add Item", style: .default) { action in
             // What happens when the add button is clicked
             self.itemArray.append(textField.text!)
+            // Save to UserDefaults
+            self.defaults.set(self.itemArray, forKey: "TodoListArray")
             // Could also do reloadTable() but its more costly
             self.tableView.insertRows(at: [IndexPath(row: self.itemArray.count - 1, section: 0) ], with: .left)
         }
