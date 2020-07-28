@@ -10,7 +10,7 @@ import UIKit
 
 class TodoListViewController: UIViewController {
 
-    let itemArray: [String] = ["Buy milk", "Buy eggs", "Make cake", "Profit"]
+    var itemArray: [String] = ["Buy milk", "Buy eggs", "Make cake", "Profit"]
     
     var tableView: UITableView!
     var reuseIdentifier: String = "TodoItemCell"
@@ -35,9 +35,34 @@ class TodoListViewController: UIViewController {
         navigationItem.title = "Yatdl"
         navigationController?.navigationBar.barTintColor = #colorLiteral(red: 0.9568627451, green: 0.6352941176, blue: 0.3803921569, alpha: 1)
         navigationController?.navigationBar.titleTextAttributes = [NSAttributedString.Key.foregroundColor: UIColor.white]
+        let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addNewItem(_:)))
+        navigationItem.rightBarButtonItem = addButton
+        navigationItem.rightBarButtonItem?.tintColor = .white
         
     }
 
+    
+    //MARK: - Action Methods
+    @objc private func addNewItem(_ sender: UIBarButtonItem) {
+        // Create Alert Controller to prompt the user to input new data
+        var textField: UITextField = UITextField()
+        
+        let ac = UIAlertController(title: "Add new item to the list", message: "", preferredStyle: .alert)
+        let newItemAction = UIAlertAction(title: "Add Item", style: .default) { action in
+            // What happens when the add button is clicked
+            self.itemArray.append(textField.text!)
+            // Could also do reloadTable() but its more costly
+            self.tableView.insertRows(at: [IndexPath(row: self.itemArray.count - 1, section: 0) ], with: .left)
+        }
+        // Add a new textfield to the alert controller to input data
+        ac.addTextField { alertTextField in
+            textField.placeholder = "Add New Item"
+            textField = alertTextField
+        }
+        ac.addAction(newItemAction)
+        present(ac, animated: true, completion: nil)
+        
+    }
 
 }
 
