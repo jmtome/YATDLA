@@ -21,39 +21,72 @@ class TodoListViewController: UIViewController {
     //Get the CoreData Stack Context from the AppDelegate
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
 
-    
-    var tableView: UITableView!
     var reuseIdentifier: String = "TodoItemCell"
-    
+       
+    var tableView: UITableView!
+    let searchController: UISearchController! = UISearchController(searchResultsController: nil)
+   
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        //This is needed so that the searchbar from the searchcontroller starts hidden
+        tableView.contentOffset = CGPoint(x: 0, y: searchController.searchBar.frame.height)
+    }
     override func loadView() {
         super.loadView()
+        //Assign tableView to the viewController's view
         tableView = UITableView(frame: .zero, style: .plain)
-        self.view = tableView
+        view = tableView
         
     }
     
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
-                
         //UITableView Setup
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: reuseIdentifier)
-        tableView.delegate = self
-        tableView.dataSource = self
-   
+        tableViewSetup()
+        //UISearchBar Setup
+        setupSearchController()
         //We load items from core data
         loadItems()
-        
         //Setup NavCon navigation bar properties
+        setupNavBar()
+        definesPresentationContext = true
+        
+    }
+    
+   
+    //MARK: - UI Setup
+    func setupNavBar() {
         navigationItem.title = "Yatdl"
         navigationController?.navigationBar.barTintColor = #colorLiteral(red: 0.9568627451, green: 0.6352941176, blue: 0.3803921569, alpha: 1)
         navigationController?.navigationBar.titleTextAttributes = [NSAttributedString.Key.foregroundColor: UIColor.white]
         let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addNewItem(_:)))
         navigationItem.rightBarButtonItem = addButton
         navigationItem.rightBarButtonItem?.tintColor = .white
-        
     }
-    
+    func tableViewSetup() {
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: reuseIdentifier)
+        tableView.delegate = self
+        tableView.dataSource = self
+        
+        //apparently the estimated row height was the responsible for the extra space at the bottom of the table view
+        tableView.estimatedRowHeight = 0;
+        
+//        tableView.estimatedSectionHeaderHeight = 0;
+//        tableView.estimatedSectionFooterHeight = 0
+    }
+   
+    func setupSearchController() {
+        //SearchController
+        searchController.searchResultsUpdater = self
+        searchController.searchBar.delegate = self
+        searchController.searchBar.sizeToFit()
+        // searchController.searchBar.barStyle = .black
+        tableView.tableHeaderView = searchController.searchBar
+        searchController.searchBar.placeholder = "Search Here"
+        searchController.obscuresBackgroundDuringPresentation = false
+        searchController.hidesNavigationBarDuringPresentation = true
+    }
     
     //MARK: - Action Methods
     @objc private func addNewItem(_ sender: UIBarButtonItem) {
@@ -106,24 +139,12 @@ class TodoListViewController: UIViewController {
         
         
     }
-    func loadItems() {
-        //Load items from PropertyListDecoder
-//        do{
-//            if let data = try? Data(contentsOf: dataFilePath!) {
-//                let decoder = PropertyListDecoder()
-//                do{
-//                    itemArray = try decoder.decode([Item].self, from: data)
-//                } catch {
-//                    print("error decoding item array \(error)")
-//                }
-//            }
-//        }
-        
+    
+    //we give the method a default item so that if no parameter is passed, it uses the default parameter
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest()) {
+       
         //Load disk from CoreData Stack from context
-        
         //We create a fetchRequest of type Item
-        let request: NSFetchRequest<Item> = Item.fetchRequest()
-        
         do {
             // we try to make a fetch request with the context, with a fetchRequest of type Item
             //we know that the fetch request will return an Item array
@@ -132,12 +153,7 @@ class TodoListViewController: UIViewController {
         } catch {
             print("error fetching data from context")
         }
-        
-        
     }
-    
-    
-    
 }
 
 
@@ -203,3 +219,67 @@ extension TodoListViewController: UITableViewDelegate {
         return swipeAction
     }
 }
+
+
+extension TodoListViewController: UISearchResultsUpdating, UISearchBarDelegate {
+    func updateSearchResults(for searchController: UISearchController) {
+        print(searchController.searchBar.text!)
+        print("pepe1")
+    }
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        //we prepare a request to search for an item in order to read from the database
+        let request: NSFetchRequest<Item> = Item.fetchRequest()
+        //now we need to set a predicate to query objects,
+        //the format here says: search for the "title" attribute of each of our items, and look for titles containing the text passed by searchbar.text
+        //[cd] : case insensitive, diacritic insensitive
+        let predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+        //assign the predicate to the request predicate
+        request.predicate = predicate
+        //we now want to sort the data we get back with a sort descriptor
+        let sortDescriptor = NSSortDescriptor(key: "title", ascending: true)
+        //now we add the sort descriptor to our request
+        request.sortDescriptors = [sortDescriptor]
+        //we now try, using the fetch request we just crafted, we load the items with the request
+        self.loadItems(with: request)
+        //finally, we now DO, reload our tableview
+        self.tableView.reloadData()
+        
+    }
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        //check if the searchbar text value is zero, if so, show the original list of items
+        if searchBar.text?.count == 0 {
+            //load list with default fetch request
+            loadItems()
+            //reload the tableview
+            self.tableView.reloadData()
+            //resign first responder from searchbar
+            DispatchQueue.main.async {
+                searchBar.resignFirstResponder()
+                //TODO: - Check this out, i want to resign the first responder, but the cancel button wont go away, so the only way i've found to do this is by dismissing the view (searchController) im not sure whats the appropriate way to do this.
+                self.dismiss(animated: true, completion: nil)
+            }
+        }
+    }
+    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        //TODO: - I need to do the same as in the method above
+    }
+    
+}
+
+
+
+
+
+//old code
+ //Load items from PropertyListDecoder
+//        do{
+//            if let data = try? Data(contentsOf: dataFilePath!) {
+//                let decoder = PropertyListDecoder()
+//                do{
+//                    itemArray = try decoder.decode([Item].self, from: data)
+//                } catch {
+//                    print("error decoding item array \(error)")
+//                }
+//            }
+//        }
+ 
