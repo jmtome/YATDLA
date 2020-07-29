@@ -13,15 +13,14 @@ import CoreData
 
 class TodoListViewController: UIViewController {
     
+    let flatColors: [UIColor] = [#colorLiteral(red: 1, green: 0.5409764051, blue: 0.8473142982, alpha: 1),#colorLiteral(red: 0.476841867, green: 0.5048075914, blue: 1, alpha: 1),#colorLiteral(red: 0.4620226622, green: 0.8382837176, blue: 1, alpha: 1),#colorLiteral(red: 0.4508578777, green: 0.9882974029, blue: 0.8376303315, alpha: 1),#colorLiteral(red: 0.4500938654, green: 0.9813225865, blue: 0.4743030667, alpha: 1),#colorLiteral(red: 0.8321695924, green: 0.985483706, blue: 0.4733308554, alpha: 1),#colorLiteral(red: 0.9995340705, green: 0.988355577, blue: 0.4726552367, alpha: 1),#colorLiteral(red: 1, green: 0.8323456645, blue: 0.4732058644, alpha: 1),#colorLiteral(red: 1, green: 0.4932718873, blue: 0.4739984274, alpha: 1),#colorLiteral(red: 1, green: 0.1857388616, blue: 0.5733950138, alpha: 1),#colorLiteral(red: 1, green: 0.2527923882, blue: 1, alpha: 1),#colorLiteral(red: 0.5818830132, green: 0.2156915367, blue: 1, alpha: 1),#colorLiteral(red: 0.01680417731, green: 0.1983509958, blue: 1, alpha: 1),#colorLiteral(red: 0, green: 0.5898008943, blue: 1, alpha: 1),#colorLiteral(red: 0, green: 0.9914394021, blue: 1, alpha: 1),#colorLiteral(red: 0, green: 0.9810667634, blue: 0.5736914277, alpha: 1),#colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1),#colorLiteral(red: 0.9994240403, green: 0.9855536819, blue: 0, alpha: 1),#colorLiteral(red: 1, green: 0.1491314173, blue: 0, alpha: 1),#colorLiteral(red: 0.5808190107, green: 0.0884276256, blue: 0.3186392188, alpha: 1),#colorLiteral(red: 0, green: 0.5690457821, blue: 0.5746168494, alpha: 1)]
+    
     var itemArray: [Item] = [Item]()
     var selectedCategory: Category? {
         didSet {
             loadItems()
         }
     }
-    
-    //Path to user documents sandbox filepath for the Items.plist file
-    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
     
     //Get the CoreData Stack Context from the AppDelegate
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
@@ -56,6 +55,7 @@ class TodoListViewController: UIViewController {
         //Setup NavCon navigation bar properties
         setupNavBar()
         definesPresentationContext = true
+        print(dataFilePath!)
         
     }
     
@@ -73,7 +73,7 @@ class TodoListViewController: UIViewController {
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: reuseIdentifier)
         tableView.delegate = self
         tableView.dataSource = self
-        
+        tableView.separatorStyle = .none
         //apparently the estimated row height was the responsible for the extra space at the bottom of the table view
         tableView.estimatedRowHeight = 0;
         
@@ -109,6 +109,8 @@ class TodoListViewController: UIViewController {
             newItem.title = textField.text!
             newItem.done = false
             newItem.parentCategory = self.selectedCategory
+            newItem.colorString = self.flatColors.randomElement()?.toHexString()
+
             self.itemArray.append(newItem)
             // Save changes to core data
             self.saveItems()
@@ -176,8 +178,9 @@ extension TodoListViewController: UITableViewDataSource {
         let item = self.itemArray[indexPath.row]
         //Assign cell properties
         cell.textLabel?.text = item.title
-        
+        cell.backgroundColor = UIColor(hex: item.colorString!)
         cell.accessoryType = item.done ? .checkmark : .none
+        
         print("cfra")
         return cell
     }
@@ -218,7 +221,8 @@ extension TodoListViewController: UITableViewDelegate {
             
             completion(true)
         }
-        deleteAction.backgroundColor = .systemBlue
+        deleteAction.backgroundColor = .systemRed
+        deleteAction.image = UIImage(systemName: "trash")
         let swipeAction = UISwipeActionsConfiguration(actions: [deleteAction])
         swipeAction.performsFirstActionWithFullSwipe = true
         
@@ -273,6 +277,47 @@ extension TodoListViewController: UISearchResultsUpdating, UISearchBarDelegate {
     
 }
 
+
+extension UIColor {
+    func toHexString() -> String {
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        
+        getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        let rgb: Int = (Int)(red * 255) << 24 | (Int)(green * 255) << 16 | (Int)(blue * 255) << 8 | (Int)(alpha * 255) << 0
+        return String(format: "#%08x", rgb)
+    }
+}
+
+extension UIColor {
+    public convenience init?(hex: String) {
+        let r, g, b, a: CGFloat
+
+        if hex.hasPrefix("#") {
+            let start = hex.index(hex.startIndex, offsetBy: 1)
+            let hexColor = String(hex[start...])
+
+            if hexColor.count == 8 {
+                let scanner = Scanner(string: hexColor)
+                var hexNumber: UInt64 = 0
+
+                if scanner.scanHexInt64(&hexNumber) {
+                    r = CGFloat((hexNumber & 0xff000000) >> 24) / 255
+                    g = CGFloat((hexNumber & 0x00ff0000) >> 16) / 255
+                    b = CGFloat((hexNumber & 0x0000ff00) >> 8) / 255
+                    a = CGFloat(hexNumber & 0x000000ff) / 255
+
+                    self.init(red: r, green: g, blue: b, alpha: a)
+                    return
+                }
+            }
+        }
+
+        return nil
+    }
+}
 
 
 

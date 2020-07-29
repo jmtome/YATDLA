@@ -19,6 +19,7 @@ extension Item {
 
     @NSManaged public var done: Bool
     @NSManaged public var title: String?
+    @NSManaged public var colorString: String?
     @NSManaged public var parentCategory: Category?
 
 }

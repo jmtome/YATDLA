@@ -132,7 +132,8 @@
             
             completion(true)
         }
-        deleteAction.backgroundColor = .systemBlue
+        deleteAction.backgroundColor = .systemRed
+        deleteAction.image = UIImage(systemName: "trash")
         let swipeAction = UISwipeActionsConfiguration(actions: [deleteAction])
         swipeAction.performsFirstActionWithFullSwipe = true
         
