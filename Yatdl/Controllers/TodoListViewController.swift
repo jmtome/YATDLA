@@ -14,6 +14,11 @@ import CoreData
 class TodoListViewController: UIViewController {
     
     var itemArray: [Item] = [Item]()
+    var selectedCategory: Category? {
+        didSet {
+            loadItems()
+        }
+    }
     
     //Path to user documents sandbox filepath for the Items.plist file
     let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
@@ -57,7 +62,7 @@ class TodoListViewController: UIViewController {
    
     //MARK: - UI Setup
     func setupNavBar() {
-        navigationItem.title = "Yatdl"
+        navigationItem.title = "Items"
         navigationController?.navigationBar.barTintColor = #colorLiteral(red: 0.9568627451, green: 0.6352941176, blue: 0.3803921569, alpha: 1)
         navigationController?.navigationBar.titleTextAttributes = [NSAttributedString.Key.foregroundColor: UIColor.white]
         let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addNewItem(_:)))
@@ -103,8 +108,9 @@ class TodoListViewController: UIViewController {
         
             newItem.title = textField.text!
             newItem.done = false
+            newItem.parentCategory = self.selectedCategory
             self.itemArray.append(newItem)
-            // Save changes to plist file
+            // Save changes to core data
             self.saveItems()
             // Could also do reloadTable() but its more costly
             self.tableView.insertRows(at: [IndexPath(row: self.itemArray.count - 1, section: 0) ], with: .left)
@@ -119,32 +125,32 @@ class TodoListViewController: UIViewController {
         
     }
     
-    //MARK: - Model manipulation methods
+    //MARK: - Data manipulation methods
     func saveItems() {
-        // Save to PropertyListEncoder
-//        let encoder = PropertyListEncoder()
-//        do {
-//            let data = try encoder.encode(self.itemArray)
-//            try data.write(to: self.dataFilePath!)
-//        } catch {
-//            print("error encoding item array \(error)")
-//        }
-        
         //New Code for CoreData management
         do {
             try context.save()
         } catch {
             print("Error saving context \(error)")
         }
-        
-        
     }
-    
     //we give the method a default item so that if no parameter is passed, it uses the default parameter
-    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest()) {
-       
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest(), predicate: NSPredicate? = nil ) {
         //Load disk from CoreData Stack from context
-        //We create a fetchRequest of type Item
+        
+        //we create a predicate to form a fetch request that asks for the items with a common parent category (the one clicked in CategoryViewController)
+        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", selectedCategory!.name!)
+        
+        //we create a compound Predicate, which will be the passed predicate (if it exists) and a category predicate
+        if let additionalPredicate = predicate {
+            //we set the request predicate to a compound predicate, which is nothing more than many predicates joined with an AND
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate, additionalPredicate])
+        } else {
+            // if there is no additional predicate, then we just set the predicate to the category sort by default
+            request.predicate = categoryPredicate
+        }
+        
+        //We create a fetchRequest of type Item to fetch the data matching the predicates that the request has
         do {
             // we try to make a fetch request with the context, with a fetchRequest of type Item
             //we know that the fetch request will return an Item array
@@ -234,13 +240,14 @@ extension TodoListViewController: UISearchResultsUpdating, UISearchBarDelegate {
         //[cd] : case insensitive, diacritic insensitive
         let predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
         //assign the predicate to the request predicate
-        request.predicate = predicate
+        //Note: since now im passing a predicate and a request to the loadItems method, i will not set the request predicate here, for it will be done inside the loadItems method.
+//        request.predicate = predicate
         //we now want to sort the data we get back with a sort descriptor
         let sortDescriptor = NSSortDescriptor(key: "title", ascending: true)
         //now we add the sort descriptor to our request
         request.sortDescriptors = [sortDescriptor]
         //we now try, using the fetch request we just crafted, we load the items with the request
-        self.loadItems(with: request)
+        self.loadItems(with: request, predicate: predicate)
         //finally, we now DO, reload our tableview
         self.tableView.reloadData()
         
@@ -283,3 +290,13 @@ extension TodoListViewController: UISearchResultsUpdating, UISearchBarDelegate {
 //            }
 //        }
  
+//old code
+// Save to PropertyListEncoder
+//        let encoder = PropertyListEncoder()
+//        do {
+//            let data = try encoder.encode(self.itemArray)
+//            try data.write(to: self.dataFilePath!)
+//        } catch {
+//            print("error encoding item array \(error)")
+//        }
+        

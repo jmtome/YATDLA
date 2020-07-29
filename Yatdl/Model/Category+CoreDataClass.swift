@@ -1,5 +1,5 @@
 //
-//  Item+CoreDataClass.swift
+//  Category+CoreDataClass.swift
 //  Yatdl
 //
 //  Created by Juan Manuel Tome on 29/07/2020.
@@ -10,7 +10,7 @@
 import Foundation
 import CoreData
 
-
-public class Item: NSManagedObject {
+@objc(Category)
+public class Category: NSManagedObject {
 
 }
