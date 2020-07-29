@@ -7,7 +7,7 @@
 //
 
 import UIKit
-
+import CoreData
 
 
 
@@ -18,6 +18,9 @@ class TodoListViewController: UIViewController {
     //Path to user documents sandbox filepath for the Items.plist file
     let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
     
+    //Get the CoreData Stack Context from the AppDelegate
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+
     
     var tableView: UITableView!
     var reuseIdentifier: String = "TodoItemCell"
@@ -32,19 +35,13 @@ class TodoListViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        //dataFilePath = directory?.appendingPathComponent("Items.plist")
-        
+                
         //UITableView Setup
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: reuseIdentifier)
         tableView.delegate = self
         tableView.dataSource = self
-        
-        let newItem = Item()
-        newItem.title = "Find Mike"
-        itemArray.append(newItem)
-        
-        //We load items from plist file
+   
+        //We load items from core data
         loadItems()
         
         //Setup NavCon navigation bar properties
@@ -65,9 +62,14 @@ class TodoListViewController: UIViewController {
         
         let ac = UIAlertController(title: "Add new item to the list", message: "", preferredStyle: .alert)
         let newItemAction = UIAlertAction(title: "Add Item", style: .default) { action in
+            
             // What happens when the add button is clicked
-            let newItem = Item()
+            
+            //We create a new Item with a core data context
+            let newItem = Item(context: self.context)
+        
             newItem.title = textField.text!
+            newItem.done = false
             self.itemArray.append(newItem)
             // Save changes to plist file
             self.saveItems()
@@ -87,25 +89,51 @@ class TodoListViewController: UIViewController {
     //MARK: - Model manipulation methods
     func saveItems() {
         // Save to PropertyListEncoder
-        let encoder = PropertyListEncoder()
+//        let encoder = PropertyListEncoder()
+//        do {
+//            let data = try encoder.encode(self.itemArray)
+//            try data.write(to: self.dataFilePath!)
+//        } catch {
+//            print("error encoding item array \(error)")
+//        }
+        
+        //New Code for CoreData management
         do {
-            let data = try encoder.encode(self.itemArray)
-            try data.write(to: self.dataFilePath!)
+            try context.save()
         } catch {
-            print("error encoding item array \(error)")
+            print("Error saving context \(error)")
         }
+        
+        
     }
     func loadItems() {
-        do{
-            if let data = try? Data(contentsOf: dataFilePath!) {
-                let decoder = PropertyListDecoder()
-                do{
-                    itemArray = try decoder.decode([Item].self, from: data)
-                } catch {
-                    print("error decoding item array \(error)")
-                }
-            }
+        //Load items from PropertyListDecoder
+//        do{
+//            if let data = try? Data(contentsOf: dataFilePath!) {
+//                let decoder = PropertyListDecoder()
+//                do{
+//                    itemArray = try decoder.decode([Item].self, from: data)
+//                } catch {
+//                    print("error decoding item array \(error)")
+//                }
+//            }
+//        }
+        
+        //Load disk from CoreData Stack from context
+        
+        //We create a fetchRequest of type Item
+        let request: NSFetchRequest<Item> = Item.fetchRequest()
+        
+        do {
+            // we try to make a fetch request with the context, with a fetchRequest of type Item
+            //we know that the fetch request will return an Item array
+            self.itemArray = try context.fetch(request)
+            
+        } catch {
+            print("error fetching data from context")
         }
+        
+        
     }
     
     
@@ -142,11 +170,36 @@ extension TodoListViewController: UITableViewDelegate {
         
         //Select and unselect the checkmark
         itemArray[indexPath.row].done.toggle()
+        //Modifying Item attributes is the same as doing this:
+//        itemArray[indexPath.row].setValue("NewTitle", forKey: "title")
         //Save checkmark toggle to file
         saveItems()
         //Reload the cell whose checkmark toogle changed
         tableView.reloadRows(at: [indexPath], with: .automatic)
         
         tableView.deselectRow(at: indexPath, animated: true)
+    }
+    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        let deleteAction = UIContextualAction(style: .destructive, title: "Delete") { (action, _, completion) in
+            
+            //The order here matters a huge deal:
+            
+            //1) first we must delete item from the core data permanent store, if we delete the item from the local array first, we will have an error because it will lose the proper row to find it to delete it
+            //(because we are using itemArray[indexPath.row] to indicate which object we want to delete from coredata, thus if we delete the item first in the itemArray we cant reference it to delete the coreData object
+            self.context.delete(self.itemArray[indexPath.row])
+            //2) delete item from local array, ItemArray, this array populates the tableview
+            self.itemArray.remove(at: indexPath.row)
+            //3) commit changes to the database
+            self.saveItems()
+            //4) delete rows/ update tableview
+            tableView.deleteRows(at: [indexPath], with: .fade)
+            
+            completion(true)
+        }
+        deleteAction.backgroundColor = .systemBlue
+        let swipeAction = UISwipeActionsConfiguration(actions: [deleteAction])
+        swipeAction.performsFirstActionWithFullSwipe = true
+        
+        return swipeAction
     }
 }
