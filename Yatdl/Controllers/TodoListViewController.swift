@@ -55,7 +55,6 @@ class TodoListViewController: UIViewController {
         //Setup NavCon navigation bar properties
         setupNavBar()
         definesPresentationContext = true
-        print(dataFilePath!)
         
     }
     
