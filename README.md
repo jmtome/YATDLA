@@ -4,7 +4,9 @@
 ### TODO's
 
 - [x] Basic Programmatic UI
-- [ ] Persist Data with CoreData
+- [x] Persist Data with CoreData
+- [x] Two levels of core data interconnected
+- [x] Searchbar to search for items
 
  
 
